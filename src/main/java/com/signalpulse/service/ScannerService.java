@@ -29,6 +29,7 @@ public class ScannerService {
     private final NotificationService notificationService;
     private final JsonMapper jsonMapper;
     private final ConfigService configService;
+    private final Map<String, java.util.regex.Pattern> patternCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     public void runScan() {
         log.info("Starting comprehensive async scan at {}", LocalDateTime.now());
@@ -245,7 +246,9 @@ public class ScannerService {
                 boolean ruleMatched = false;
                 for (String patternStr : rule.getPatterns()) {
                     try {
-                        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(patternStr, java.util.regex.Pattern.CASE_INSENSITIVE);
+                        java.util.regex.Pattern pattern = patternCache.computeIfAbsent(patternStr, p -> 
+                            java.util.regex.Pattern.compile(p, java.util.regex.Pattern.CASE_INSENSITIVE));
+                        
                         if (pattern.matcher(textToSearch).find()) {
                             additionalScore += rule.getWeight();
                             ruleMatched = true;

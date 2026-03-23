@@ -39,6 +39,13 @@ public class RequestResponseLoggingFilter implements Filter {
         String requestBody = new String(request.getContentAsByteArray(), StandardCharsets.UTF_8);
         String responseBody = new String(response.getContentAsByteArray(), StandardCharsets.UTF_8);
 
+        if (requestBody.length() > 1000) {
+            requestBody = requestBody.substring(0, 1000) + "... [truncated]";
+        }
+        if (responseBody.length() > 1000) {
+            responseBody = responseBody.substring(0, 1000) + "... [truncated]";
+        }
+
         log.info("API CALL: [{} {}] - Status: {} - Payload: {} - Response: {}", 
                 request.getMethod(), 
                 request.getRequestURI(), 

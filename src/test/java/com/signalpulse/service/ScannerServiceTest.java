@@ -48,8 +48,8 @@ class ScannerServiceTest {
     void testScoreArticlesWithRegex() {
         // Arrange
         Article article = new Article();
-        article.setTitle("Nepal Rastra Bank issues new Digital Lending Guidelines");
-        article.setDescription("The new framework aims to regulate BNPL and online loans.");
+        article.setTitle("Nepal Rastra Bank Guideline for Digital Lending");
+        article.setDescription("This framework includes BNPL regulations.");
         article.setBaseScore(5.0);
 
         TopicRule rule1 = new TopicRule();
