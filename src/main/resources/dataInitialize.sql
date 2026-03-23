@@ -4,11 +4,12 @@ INSERT IGNORE INTO signalPulse.app_config (config_key,config_value) VALUES
                                                                  ('GMAIL_USER','foneloan.f1soft@gmail.com'),
                                                                  ('INITIAL_LOOKBACK_HOURS','5000'),
                                                                  ('MANUAL_WINDOW','24'),
-                                                                 ('MIN_RELEVANCE_SCORE','1'),
+                                                                 ('MIN_RELEVANCE_SCORE','2.5'),
                                                                  ('NOTIFY_RECIPIENTS','narenzoshi@gmail.com'),
                                                                  ('SCAN_MAX_RETRIES','3'),
                                                                  ('SCAN_RETRY_INTERVAL_MS','2000'),
-                                                                 ('TOP_N_ARTICLES','5');
+                                                                 ('TOP_N_ARTICLES','5'),
+                                                                 ('SESSION_TIMEOUT_MINS', '30');
 
 INSERT IGNORE INTO signalPulse.privilege (name) VALUES 
 ('OP_READ_ALL'), ('OP_WRITE_SOURCES'), ('OP_WRITE_RULES'), ('OP_TRIGGER_SCAN'), ('OP_MANAGE_USERS'), ('OP_MANAGE_CONFIG'), ('OP_PAUSE_JOBS');
@@ -31,12 +32,9 @@ WHERE r.name = 'USER' AND p.name = 'OP_READ_ALL';
 
 -- Create default SuperAdmin
 INSERT IGNORE INTO signalPulse.app_user (username, password) VALUES 
-('admin', '$2a$12$F9REEx/PTTtIavijLgbxJOUe42RCA7nJl2qDKlddAAK2na/hqpFTy');
+('superadmin', '$2a$12$F9REEx/PTTtIavijLgbxJOUe42RCA7nJl2qDKlddAAK2na/hqpFTy');
 
 -- Link Default Admin to SUPERADMIN role
 INSERT IGNORE INTO signalPulse.users_roles (user_id, role_id)
 SELECT u.id, r.id FROM signalPulse.app_user u, signalPulse.role r 
-WHERE u.username = 'admin' AND r.name = 'SUPERADMIN';
-
--- Session Timeout Config
-INSERT IGNORE INTO signalPulse.app_config (config_key, config_value) VALUES ('SESSION_TIMEOUT_MINS', '30');
+WHERE u.username = 'superadmin' AND r.name = 'SUPERADMIN';

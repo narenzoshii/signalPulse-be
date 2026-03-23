@@ -19,27 +19,45 @@ import java.io.IOException;
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
     private final CustomUserDetailsService userDetailsService;
+    private final com.signalpulse.security.JwtService jwtService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(
+            @jakarta.annotation.Nonnull HttpServletRequest request,
+            @jakarta.annotation.Nonnull HttpServletResponse response,
+            @jakarta.annotation.Nonnull FilterChain filterChain
+    ) throws ServletException, IOException {
         
         final String authHeader = request.getHeader("Authorization");
+        final String jwt;
+        final String username;
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String token = authHeader.substring(7);
-        // For now, we only have one "admin" user and "dummy-auth-token-123"
-        // In a real app, you'd decode JWT or check a token store.
-        if ("dummy-auth-token-123".equals(token)) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername("admin");
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+        jwt = authHeader.substring(7);
+        try {
+            username = jwtService.extractUsername(jwt);
+        } catch (Exception e) {
+            // If token is invalid or expired, continue the filter chain
+            // SecurityContext will remain empty, thus resulting in 403/401
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+            if (jwtService.isTokenValid(jwt, userDetails)) {
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities()
+                );
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
         }
 
         filterChain.doFilter(request, response);

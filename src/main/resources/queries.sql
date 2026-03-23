@@ -12,8 +12,8 @@ INSERT INTO signalPulse.app_config (config_key,config_value) VALUES
 
 
 
-INSERT INTO signalPulse.app_user (password,role,username) VALUES
-                                                              ('$2a$12$F9REEx/PTTtIavijLgbxJOUe42RCA7nJl2qDKlddAAK2na/hqpFTy', 'ROLE_ADMIN','admin')
+INSERT INTO signalPulse.app_user (password,username) VALUES
+                                                              ('$2a$12$F9REEx/PTTtIavijLgbxJOUe42RCA7nJl2qDKlddAAK2na/hqpFTy','superadmin')
 
 
 
@@ -59,46 +59,57 @@ INSERT INTO signalPulse.rss_feed (id, enabled, name, trust, url, category_id) VA
 
 -- 4. Insert Rules matching core domain goals
 INSERT INTO signalPulse.topic_rule (id, active, topic_key, weight) VALUES
-                                                                       (1, 1, 'bnpl_core', 6.0),
-                                                                       (2, 1, 'digital_lending', 5.0),
-                                                                       (3, 1, 'embedded_finance', 5.0),
-                                                                       (4, 1, 'credit_scoring_data', 4.0),
-                                                                       (5, 1, 'collections_recovery', 3.0),
-                                                                       (6, 1, 'central_bank_regulations', 4.0),
-                                                                       (7, 1, 'general_fintech', 1.0);
+(1, 1, 'lending_regulation', 10.0), -- Digital lending guidelines, NRB, circulars
+(2, 1, 'lending_tech', 9.0),       -- LOS, LMS, Scoring, APIs
+(3, 1, 'lending_core', 8.0),       -- Digital/Mobile/Online loans, P2P
+(4, 1, 'bnpl_pos', 8.5),           -- BNPL, POS financing
+(5, 1, 'embedded_lending', 7.5),   -- Embedded credit, BaaS
+(6, 1, 'credit_risk_ai', 8.0),     -- Alternative scoring, Analytics
+(7, 1, 'general_fintech_low', 0.5); -- Very low weight for general fintech to avoid noise
 
 -- 5. Insert granular regex patterns with exactly matching IDs
 INSERT INTO signalPulse.topic_rule_patterns (topic_rule_id, patterns) VALUES
-                                                                          -- rule 1: BNPL
-                                                                          (1, '\\bbnpl\\b'),
-                                                                          (1, '\\bbuy now,? pay later\\b'),
-                                                                          (1, '\\bpay in (3|4|three|four)\\b'),
-                                                                          (1, '\\binstallment (loan|plan)\\b'),
-                                                                          (1, '\\bpoint of sale financing\\b'),
-                                                                          -- rule 2: Digital Lending
-                                                                          (2, '\\b(digital|online|mobile) (lending|loan|credit)\\b'),
-                                                                          (2, '\\bp2p lending\\b'),
-                                                                          (2, '\\bpeer-to-peer\\b'),
-                                                                          (2, '\\bmerchant cash advance\\b'),
-                                                                          (2, '\\bnano loan\\b'),
-                                                                          -- rule 3: Embedded Finance
-                                                                          (3, '\\bembedded (finance|lending|credit|bank)\\b'),
-                                                                          (3, '\\bbanking as a service\\b'),
-                                                                          (3, '\\bbaas\\b'),
-                                                                          (3, '\\bopen banking\\b'),
-                                                                          (3, '\\bapi integration\\b'),
-                                                                          -- rule 4: Credit Scoring
-                                                                          (4, '\\bcredit (score|scoring|bureau|risk)\\b'),
-                                                                          (4, '\\balternative data\\b'),
-                                                                          (4, '\\bcibil\\b'),
-                                                                          (4, '\\bdecision engine\\b'),
-                                                                          -- rule 5: Collections
-                                                                          (5, '\\b(debt )?(collection|recovery)\\b'),
-                                                                          (5, '\\bdelinquency\\b'),
-                                                                          (5, '\\bnpa\\b'),
-                                                                          (5, '\\bcharge-?off\\b'),
-                                                                          -- rule 6: Regulations
-                                                                          (6, '\\b(nrb|nepal rastra bank|cbsl|central bank of sri lanka|bangladesh bank)\\b'),
-                                                                          (6, '\\b(regulatory|compliance|circular)\\b'),
-                                                                          -- rule 7: General Fintech
-                                                                          (7, '\\b(fintech|neobank|neo-bank|digital bank|digital wallet)\\b');
+-- Rule 1: Regulations & Compliance
+(1, '\\b(nrb|nepal rastra bank|cbsl|central bank of sri lanka|bangladesh bank) (circular|guideline|directive)\\b'),
+(1, '\\bdigital lending (guidelines|regulations|framework)\\b'),
+(1, '\\b(lending|credit) compliance\\b'),
+(1, '\\binterest rate (cap|ceiling)\\b'),
+(1, '\\bconsumer protection (in)? lending\\b'),
+(1, '\\b(non-performing loans?|npl|npa) (reporting|guidelines)\\b'),
+
+-- Rule 2: Lending Technology
+(2, '\\bloan origination system\\b'),
+(2, '\\b(los|lms)\\b'),
+(2, '\\bloan management system\\b'),
+(2, '\\bcredit decisioning (engine|platform)\\b'),
+(2, '\\b(lending|loan) (api|platform|engine)\\b'),
+(2, '\\bautomated underwriting\\b'),
+(2, '\\be-?kyc (for )?lending\\b'),
+
+-- Rule 3: Digital Lending Core
+(3, '\\b(digital|online|mobile|web-?based) (lending|loan|credit)\\b'),
+(3, '\\b(unsecured|collateral-?free|instant) (loan|credit)\\b'),
+(3, '\\b(p2p|peer-to-peer) lending\\b'),
+(3, '\\b(nano|micro)-?loans?\\b'),
+(3, '\\bmerchant cash advance\\b'),
+
+-- Rule 4: BNPL & POS
+(4, '\\b(buy now,? pay later|bnpl)\\b'),
+(4, '\\bpoint of sale (financing|lending|credit)\\b'),
+(4, '\\bcheckout (financing|credit)\\b'),
+(4, '\\binstallment (plan|loan)\\b'),
+
+-- Rule 5: Embedded Finance
+(5, '\\bembedded (lending|credit|finance|bank(ing)?)\\b'),
+(5, '\\bbaas (lending|credit)\\b'),
+(5, '\\bbanking as a service\\b'),
+(5, '\\bplatform-?based lending\\b'),
+
+-- Rule 6: Credit Risk & AI Scoring
+(6, '\\b(alternative|ai-?driven|machine learning) (credit )?scoring\\b'),
+(6, '\\bcredit (risk|worthi(ness)?) (analytics|modeling)\\b'),
+(6, '\\balternative data (for )?credit\\b'),
+(6, '\\bpsl (reporting|compliance)\\b'),
+
+-- Rule 7: General Fintech (Noise reduction)
+(7, '\\b(fintech|neobank|neo-bank|digital bank|digital wallet)\\b');

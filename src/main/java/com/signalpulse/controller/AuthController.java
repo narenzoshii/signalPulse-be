@@ -15,31 +15,34 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AuthController {
     
-    private final AppUserRepository appUserRepository;
-    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final org.springframework.security.authentication.AuthenticationManager authenticationManager;
+    private final com.signalpulse.security.JwtService jwtService;
+    private final com.signalpulse.service.CustomUserDetailsService userDetailsService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> creds) {
         String username = creds.get("username");
         String password = creds.get("password");
         
-        Optional<AppUser> userOpt = appUserRepository.findByUsername(username);
-        if (userOpt.isPresent()) {
-            AppUser user = userOpt.get();
-            if (passwordEncoder.matches(password, user.getPassword())) {
-                java.util.Set<String> authorities = new java.util.HashSet<>();
-                user.getRoles().forEach(r -> {
-                    authorities.add("ROLE_" + r.getName());
-                    r.getPrivileges().forEach(p -> authorities.add(p.getName()));
-                });
-                return ResponseEntity.ok(Map.of(
-                    "token", "dummy-auth-token-123", 
-                    "user", user,
-                    "authorities", authorities
-                ));
-            }
+        try {
+            authenticationManager.authenticate(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(username, password)
+            );
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
+
+        final org.springframework.security.core.userdetails.UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        final String jwt = jwtService.generateToken(userDetails);
         
-        return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+        java.util.Set<String> authorities = userDetails.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .collect(java.util.stream.Collectors.toSet());
+
+        return ResponseEntity.ok(Map.of(
+            "token", jwt,
+            "username", username,
+            "authorities", authorities
+        ));
     }
 }
