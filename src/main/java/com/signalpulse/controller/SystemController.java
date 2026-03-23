@@ -31,7 +31,7 @@ public class SystemController {
     @PostMapping("/trigger-now")
     @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('OP_TRIGGER_SCAN')")
     public void triggerNow() {
-        scannerService.runScan();
+        scannerService.runScan("MANUAL");
     }
 
 }

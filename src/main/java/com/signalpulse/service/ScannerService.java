@@ -32,7 +32,11 @@ public class ScannerService {
     private final Map<String, java.util.regex.Pattern> patternCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     public void runScan() {
-        log.info("Starting comprehensive async scan at {}", LocalDateTime.now());
+        runScan("SCHEDULED");
+    }
+
+    public void runScan(String triggerType) {
+        log.info("Starting comprehensive async scan ({}) at {}", triggerType, LocalDateTime.now());
         long startTime = System.currentTimeMillis();
         
         List<Article> allArticles = Collections.synchronizedList(new ArrayList<>());
@@ -106,7 +110,7 @@ public class ScannerService {
         List<Article> topArticles = relevant.stream().limit(topN).toList();
         
         long duration = System.currentTimeMillis() - startTime;
-        saveResults(topArticles, duration, allArticles.size());
+        saveResults(topArticles, duration, allArticles.size(), triggerType);
         
         if (!topArticles.isEmpty()) {
             String notifyEmail = configService.getConfig("NOTIFY_RECIPIENTS").orElse("admin@signalpulse.com");
@@ -271,7 +275,7 @@ public class ScannerService {
         }
     }
 
-    private void saveResults(List<Article> topArticles, long durationMs, int totalFound) {
+    private void saveResults(List<Article> topArticles, long durationMs, int totalFound, String triggerType) {
         try {
             ScanResult result = new ScanResult();
             result.setTimestamp(LocalDateTime.now());
@@ -279,6 +283,7 @@ public class ScannerService {
             result.setArticlesFound(totalFound);
             result.setNewItemsCount(topArticles.size());
             result.setStatus("SUCCESS");
+            result.setTriggerType(triggerType);
             final ScanResult savedResult = scanResultRepository.save(result);
 
             // Persist to ScannedArticle table

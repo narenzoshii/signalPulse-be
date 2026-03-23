@@ -20,4 +20,5 @@ public class ScanResult {
     private Integer newItemsCount;
     
     private String status; // SUCCESS, FAILURE
+    private String triggerType; // MANUAL, SCHEDULED
 }
