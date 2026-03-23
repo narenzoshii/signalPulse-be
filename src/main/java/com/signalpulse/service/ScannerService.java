@@ -161,7 +161,7 @@ public class ScannerService {
                 if (attempt < maxRetries) {
                     try { Thread.sleep((attempt + 1) * retryInterval); } catch (InterruptedException ignored) {}
                 } else {
-                    log.warn("Failed RSS feed {}: {}", feed.getName(), e.getMessage());
+                    log.warn("Failed RSS feed {}: {}. URL: {}", feed.getName(), e.getMessage(), feed.getUrl());
                 }
             }
         }
@@ -175,12 +175,23 @@ public class ScannerService {
         boolean success = false;
         for (int attempt = 0; attempt <= maxRetries && !success; attempt++) {
             try {
-                org.jsoup.nodes.Document doc = org.jsoup.Jsoup.connect(page.getUrl())
+                org.jsoup.Connection con = org.jsoup.Jsoup.connect(page.getUrl())
                         .userAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
                         .timeout(15000)
-                        .get();
+                        .followRedirects(true);
+                
+                org.jsoup.Connection.Response response = con.execute();
+                if (response.statusCode() != 200) {
+                    throw new Exception("HTTP status " + response.statusCode());
+                }
 
+                org.jsoup.nodes.Document doc = response.parse();
                 org.jsoup.select.Elements elements = doc.select(page.getListSelector());
+                
+                if (elements.isEmpty()) {
+                    log.warn("No elements found for selector '{}' on HTML page {}. URL: {}", page.getListSelector(), page.getName(), page.getUrl());
+                }
+
                 for (org.jsoup.nodes.Element el : elements) {
                     String title = page.getTitleSelector() != null && !page.getTitleSelector().isBlank() 
                             ? el.select(page.getTitleSelector()).text() : "";
@@ -193,6 +204,21 @@ public class ScannerService {
                     article.setTitle(title);
                     article.setLink(link);
                     article.setSource(page.getName());
+                    
+                    // Simple description extraction: find the first paragraph or generic text after the title
+                    String description = el.text().replace(title, "").trim();
+                    if (description.isEmpty()) {
+                         description = doc.select("meta[name=description]").attr("content");
+                         if (description.isEmpty()) {
+                             description = title; // fallback to title
+                         }
+                    }
+
+                    if (description.length() > 300) {
+                        description = description.substring(0, 297) + "...";
+                    }
+                    article.setDescription(description);
+
                     double catWeight = page.getCategory() != null ? page.getCategory().getWeight() : 0.0;
                     article.setBaseScore(page.getTrust() + catWeight);
                     articles.add(article);
@@ -202,23 +228,39 @@ public class ScannerService {
                 if (attempt < maxRetries) {
                     try { Thread.sleep((attempt + 1) * retryInterval); } catch (InterruptedException ignored) {}
                 } else {
-                    log.warn("Failed HTML page {}: {}", page.getName(), e.getMessage());
+                    log.error("Final failure for HTML page {}: {}. URL: {}", page.getName(), e.getMessage(), page.getUrl());
                 }
             }
         }
         return articles;
     }
 
-    private void scoreArticles(List<Article> articles) {
+    void scoreArticles(List<Article> articles) {
         List<TopicRule> rules = topicRuleRepository.findByActiveTrue();
         for (Article article : articles) {
             double additionalScore = 0;
             String textToSearch = (article.getTitle() + " " + article.getDescription()).toLowerCase();
+            
             for (TopicRule rule : rules) {
-                for (String pattern : rule.getPatterns()) {
-                    if (textToSearch.contains(pattern.toLowerCase())) {
-                        additionalScore += rule.getWeight();
-                        break;
+                boolean ruleMatched = false;
+                for (String patternStr : rule.getPatterns()) {
+                    try {
+                        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(patternStr, java.util.regex.Pattern.CASE_INSENSITIVE);
+                        if (pattern.matcher(textToSearch).find()) {
+                            additionalScore += rule.getWeight();
+                            ruleMatched = true;
+                            // Option: continue to other patterns if you want to reward multiple matches within a rule
+                            // For now, let's stick to once per rule to avoid over-weighting
+                            break; 
+                        }
+                    } catch (java.util.regex.PatternSyntaxException e) {
+                        log.warn("Invalid regex pattern in rule {}: {}", rule.getTopicKey(), patternStr);
+                        // Fallback to simple contains if regex fails
+                        if (textToSearch.contains(patternStr.toLowerCase())) {
+                            additionalScore += rule.getWeight();
+                            ruleMatched = true;
+                            break;
+                        }
                     }
                 }
             }
