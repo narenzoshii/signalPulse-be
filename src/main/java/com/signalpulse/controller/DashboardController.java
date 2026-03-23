@@ -18,7 +18,7 @@ public class DashboardController {
     }
 
     @GetMapping("/latest-results")
-    public java.util.List<com.signalpulse.entity.ScannedArticle> getLatestResults() {
+    public java.util.List<com.signalpulse.dto.ScannedArticleDTO> getLatestResults() {
         return dashboardService.getLatestResults();
     }
 }
