@@ -18,7 +18,7 @@ spring:
   sql:
     init:
       mode: always
-      data-locations: classpath:dataInitialize.sql
+      data-locations: ${SQL_INIT_DATA_LOCATIONS:classpath:dataInitialize.sql}
   jpa:
     defer-datasource-initialization: true
     hibernate:
