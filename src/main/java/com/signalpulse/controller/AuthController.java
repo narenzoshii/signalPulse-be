@@ -39,9 +39,17 @@ public class AuthController {
                 .map(org.springframework.security.core.GrantedAuthority::getAuthority)
                 .collect(java.util.stream.Collectors.toSet());
 
+        Object userProfile = Map.of(
+            "username", username,
+            "roles", authorities.stream()
+                .filter(auth -> auth.startsWith("ROLE_"))
+                .map(role -> Map.of("name", role.replace("ROLE_", "")))
+                .collect(java.util.stream.Collectors.toList())
+        );
+
         return ResponseEntity.ok(Map.of(
             "token", jwt,
-            "username", username,
+            "user", userProfile,
             "authorities", authorities
         ));
     }

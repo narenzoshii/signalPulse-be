@@ -12,11 +12,11 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class ArticleController {
     private final ScanResultRepository scanResultRepository;
-    private final com.signalpulse.repository.ScannedArticleRepository scannedArticleRepository;
+    private final com.signalpulse.service.DashboardService dashboardService;
     
     @GetMapping
-    public List<com.signalpulse.entity.ScannedArticle> getArticles() {
-        return scannedArticleRepository.findTop50ByOrderByScanResultTimestampDesc();
+    public List<com.signalpulse.dto.ScannedArticleDTO> getArticles() {
+        return dashboardService.getLatestResults();
     }
 
     @GetMapping("/history")
