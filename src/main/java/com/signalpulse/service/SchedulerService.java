@@ -11,9 +11,9 @@ import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
 @Service
@@ -23,15 +23,15 @@ public class SchedulerService implements SchedulingConfigurer {
     private final ScheduleConfigRepository scheduleConfigRepository;
     private final TaskScheduler taskScheduler;
     private final ScannerService scannerService;
-    
-    private final Map<Long, List<ScheduledFuture<?>>> scheduledTasks = new HashMap<>();
+
+    private final Map<Long, List<ScheduledFuture<?>>> scheduledTasks = new ConcurrentHashMap<>();
 
     @Override
     public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
-        // This is primarily for fixed @Scheduled tasks. 
+        // This is primarily for fixed @Scheduled tasks.
     }
 
-    public void updateSchedules() {
+    public synchronized void updateSchedules() {
         // Cancel all existing tasks
         scheduledTasks.values().forEach(futures -> futures.forEach(f -> f.cancel(false)));
         scheduledTasks.clear();
@@ -80,7 +80,7 @@ public class SchedulerService implements SchedulingConfigurer {
         }
     }
 
-    public void pauseAll() {
+    public synchronized void pauseAll() {
         scheduledTasks.values().forEach(futures -> futures.forEach(f -> f.cancel(false)));
         scheduledTasks.clear();
         log.info("Paused all scheduled tasks.");

@@ -17,7 +17,7 @@ public class Role {
     @Column(unique = true)
     private String name; // e.g. SUPERADMIN, EDITOR
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "roles_privileges",
         joinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"),

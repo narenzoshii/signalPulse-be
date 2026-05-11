@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,8 +30,6 @@ class ScannerServiceTest {
     private ScannedArticleRepository scannedArticleRepository;
     @Mock
     private NotificationService notificationService;
-    @Mock
-    private JsonMapper jsonMapper;
     @Mock
     private ConfigService configService;
 

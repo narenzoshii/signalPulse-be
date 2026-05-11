@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/system")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class SystemController {
     private final SchedulerService schedulerService;
     private final ScannerService scannerService;

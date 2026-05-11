@@ -1,0 +1,29 @@
+spring:
+  config:
+    activate:
+      on-profile: uat
+  datasource:
+    url: jdbc:mysql://${DB_HOST:uat-db}:3306/signalPulse
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  sql:
+    init:
+      mode: never
+  mail:
+    host: smtp.gmail.com
+    port: 587
+
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET}
+
+logging:
+  level:
+    com.signalpulse: INFO
+    org.springframework.web: INFO

@@ -10,44 +10,41 @@ server:
 spring:
   application:
     name: signal-pulse
-  datasource:
-    url: jdbc:mysql://localhost:3306/signalPulse?createDatabaseIfNotExist=true
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    username: ${DB_USER:root}
-    password: ${DB_PASSWORD:rootroot}
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:test} # Local default; override in deploy environments
   sql:
     init:
-      mode: always
+      mode: ${SQL_INIT_MODE:never}
       data-locations: ${SQL_INIT_DATA_LOCATIONS:classpath:dataInitialize.sql}
   jpa:
     defer-datasource-initialization: true
-    hibernate:
-      ddl-auto: none
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
-    show-sql: false
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${GMAIL_USER}
-    password: ${GMAIL_APP_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
+    open-in-view: false
 
-logging:
-  file:
-    name: signalPulse.log
-  level:
-    com.signalpulse: INFO
-    org.springframework.web: INFO
+# Monitoring and Management
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  info:
+    java:
+      enabled: true
+    os:
+      enabled: true
 
 application:
   security:
     jwt:
+      # Dev fallback only — prod/uat profiles override and require JWT_SECRET via env
       secret-key: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
       expiration: 86400000 # 24 hours
+
+app:
+  scan:
+    pool-size: ${SCAN_POOL_SIZE:8}             # bounded executor for outbound feed/page I/O
+    task-timeout-seconds: ${SCAN_TASK_TIMEOUT:120}

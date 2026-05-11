@@ -1,53 +1,64 @@
 package com.signalpulse.controller;
 
+import com.signalpulse.dto.PageResponse;
+import com.signalpulse.dto.ScheduleConfigRequest;
 import com.signalpulse.entity.ScheduleConfig;
-import com.signalpulse.service.SchedulerService;
 import com.signalpulse.repository.ScheduleConfigRepository;
+import com.signalpulse.service.SchedulerService;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
+
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class ScheduleController {
+    private static final int MAX_PAGE_SIZE = 200;
+
     private final SchedulerService schedulerService;
     private final ScheduleConfigRepository scheduleConfigRepository;
-    
+
     @GetMapping("/configs")
-    public List<ScheduleConfig> getConfigs() {
-        return scheduleConfigRepository.findAll();
+    @PreAuthorize("hasAuthority('OP_READ_ALL')")
+    public PageResponse<ScheduleConfig> getConfigs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(size, MAX_PAGE_SIZE), Sort.by("name").ascending());
+        return PageResponse.from(scheduleConfigRepository.findAll(pageable));
     }
-    
+
     @PostMapping("/configs")
-    public ScheduleConfig saveConfig(@RequestBody ScheduleConfig config) {
+    @PreAuthorize("hasAuthority('OP_MANAGE_CONFIG')")
+    public ScheduleConfig saveConfig(@Valid @RequestBody ScheduleConfigRequest body) {
+        ScheduleConfig config = body.getId() == null
+                ? new ScheduleConfig()
+                : scheduleConfigRepository.findById(body.getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Schedule not found: " + body.getId()));
+        config.setName(body.getName());
+        config.setActive(body.isActive());
+        config.setDailyTimes(new ArrayList<>(body.getDailyTimes()));
+        config.setWeeklyDays(new ArrayList<>(body.getWeeklyDays()));
+        config.setWeeklyDigestEnabled(body.isWeeklyDigestEnabled());
         ScheduleConfig saved = scheduleConfigRepository.save(config);
         schedulerService.updateSchedules();
         return saved;
     }
 
-    @PostMapping("/config/cron_schedule")
-    public void updateCronSchedule(@RequestBody java.util.Map<String, String> payload) {
-        String cron = payload.get("cronExpression");
-        // For "multiple schedules", we can either replace or append. 
-        // Given the UI shows one input, it might be the primary one, 
-        // but the user said "multiple". I'll add a new one each time 
-        // or update the default one. I'll add a new one for now.
-        ScheduleConfig config = new ScheduleConfig();
-        config.setName("Dynamic Schedule " + System.currentTimeMillis());
-//        config.setCronExpression(cron);
-        config.setActive(true);
-        scheduleConfigRepository.save(config);
-        schedulerService.updateSchedules();
-    }
-    
     @PostMapping("/trigger-sync")
+    @PreAuthorize("hasAuthority('OP_MANAGE_CONFIG')")
     public void sync() {
         schedulerService.updateSchedules();
     }
 
     @DeleteMapping("/configs/{id}")
+    @PreAuthorize("hasAuthority('OP_MANAGE_CONFIG')")
     public void deleteConfig(@PathVariable Long id) {
         scheduleConfigRepository.deleteById(id);
         schedulerService.updateSchedules();

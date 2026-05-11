@@ -14,7 +14,6 @@ public class SignalPulseApplication extends SpringBootServletInitializer {
     protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
         return application.sources(SignalPulseApplication.class);
     }
-
     public static void main(String[] args) {
         SpringApplication.run(SignalPulseApplication.class, args);
     }
