@@ -1,6 +1,6 @@
 package com.signalpulse.config;
 
-import com.signalpulse.controller.AuthController;
+import com.signalpulse.security.AuthCookieFactory;
 import com.signalpulse.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,6 +8,9 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,13 +19,17 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.util.Date;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
     private final CustomUserDetailsService userDetailsService;
     private final com.signalpulse.security.JwtService jwtService;
+    private final AuthCookieFactory cookieFactory;
 
     @Override
     protected void doFilterInternal(
@@ -53,22 +60,42 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                 );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                // Sliding session: if the token is past the halfway mark of its
+                // lifetime, mint a fresh one so an active user never bumps into
+                // the 24-h hard expiry mid-session.
+                maybeRefreshCookie(request, response, userDetails, jwt);
             }
         }
 
         filterChain.doFilter(request, response);
     }
 
+    private void maybeRefreshCookie(HttpServletRequest request, HttpServletResponse response, UserDetails userDetails, String jwt) {
+        try {
+            Date issuedAt = jwtService.extractIssuedAt(jwt);
+            if (issuedAt == null) return;
+            long ageMs = System.currentTimeMillis() - issuedAt.getTime();
+            long lifetimeMs = jwtService.getExpirationMs();
+            if (ageMs >= lifetimeMs / 2) {
+                String fresh = jwtService.generateToken(userDetails);
+                ResponseCookie cookie = cookieFactory.build(fresh, Duration.ofMillis(lifetimeMs), request);
+                response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            }
+        } catch (Exception e) {
+            // Refresh is best-effort; never break the request because of it.
+            log.debug("Cookie refresh skipped: {}", e.getMessage());
+        }
+    }
+
     private String extractJwt(HttpServletRequest request) {
-        // Preferred: httpOnly auth cookie
         if (request.getCookies() != null) {
             for (Cookie c : request.getCookies()) {
-                if (AuthController.AUTH_COOKIE.equals(c.getName())) {
+                if (AuthCookieFactory.AUTH_COOKIE.equals(c.getName())) {
                     return c.getValue();
                 }
             }
         }
-        // Fallback: Authorization: Bearer <token> (useful for CLI / smoke tests)
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             return header.substring(7);

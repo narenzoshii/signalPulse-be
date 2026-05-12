@@ -20,4 +20,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     @Override
     @EntityGraph(attributePaths = {"roles", "roles.privileges"})
     Page<AppUser> findAll(Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"roles", "roles.privileges"})
+    Optional<AppUser> findById(Long id);
 }

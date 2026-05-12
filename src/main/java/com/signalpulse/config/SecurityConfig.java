@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -26,6 +27,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final TokenAuthenticationFilter tokenFilter;
+    private final CsrfCookieFilter csrfCookieFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -33,14 +35,23 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                // SPA: client reads raw cookie value and echoes it in X-XSRF-TOKEN.
+                // Default Xor handler would reject this as a mismatch, so we route
+                // header-based comparisons through the plain (non-XOR) handler.
+                .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                 // Login and logout don't need CSRF since the user has no cookie yet at login;
                 // logout clears state via Set-Cookie regardless.
                 .ignoringRequestMatchers("/api/v1/auth/login", "/api/v1/auth/logout")
             )
+            // Materialise the CSRF token after CsrfFilter so the XSRF-TOKEN cookie
+            // actually gets written on every response.
+            .addFilterAfter(csrfCookieFilter, CsrfFilter.class)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/v1/auth/login", "/api/v1/auth/logout").permitAll()
+                // /me must be reachable even without a session so the controller
+                // can return a clean 401 instead of Spring's blanket 403.
+                .requestMatchers("/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/me").permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers("/actuator/**").authenticated()
                 .anyRequest().authenticated()

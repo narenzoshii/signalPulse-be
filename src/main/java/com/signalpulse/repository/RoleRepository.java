@@ -20,4 +20,12 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
     @Override
     @EntityGraph(attributePaths = {"privileges"})
     Page<Role> findAll(Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"privileges"})
+    Optional<Role> findById(Long id);
+
+    @Override
+    @EntityGraph(attributePaths = {"privileges"})
+    List<Role> findAllById(Iterable<Long> ids);
 }

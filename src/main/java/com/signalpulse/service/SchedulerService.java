@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,7 @@ public class SchedulerService implements SchedulingConfigurer {
         // This is primarily for fixed @Scheduled tasks.
     }
 
+    @Transactional(readOnly = true)
     public synchronized void updateSchedules() {
         // Cancel all existing tasks
         scheduledTasks.values().forEach(futures -> futures.forEach(f -> f.cancel(false)));

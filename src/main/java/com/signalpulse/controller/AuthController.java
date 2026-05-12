@@ -1,7 +1,9 @@
 package com.signalpulse.controller;
 
 import com.signalpulse.dto.LoginRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import com.signalpulse.security.AuthCookieFactory;
+import com.signalpulse.service.ConfigService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -12,7 +14,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,14 +29,18 @@ import java.util.stream.Collectors;
 public class AuthController {
 
     /** Cookie name used to carry the JWT. HttpOnly + SameSite=Lax. */
-    public static final String AUTH_COOKIE = "SP_AUTH";
+    public static final String AUTH_COOKIE = AuthCookieFactory.AUTH_COOKIE;
+
+    private static final long DEFAULT_IDLE_TIMEOUT_MINS = 30;
 
     private final AuthenticationManager authenticationManager;
     private final com.signalpulse.security.JwtService jwtService;
     private final com.signalpulse.service.CustomUserDetailsService userDetailsService;
+    private final AuthCookieFactory cookieFactory;
+    private final ConfigService configService;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest body) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest body, HttpServletRequest request) {
         try {
             authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(body.getUsername(), body.getPassword())
@@ -47,15 +52,15 @@ public class AuthController {
         UserDetails userDetails = userDetailsService.loadUserByUsername(body.getUsername());
         String jwt = jwtService.generateToken(userDetails);
 
-        ResponseCookie cookie = buildAuthCookie(jwt, Duration.ofDays(1));
+        ResponseCookie cookie = cookieFactory.build(jwt, Duration.ofMillis(jwtService.getExpirationMs()), request);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(buildUserPayload(userDetails));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
-        ResponseCookie cookie = buildAuthCookie("", Duration.ZERO);
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        ResponseCookie cookie = cookieFactory.build("", Duration.ZERO, request);
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .build();
@@ -74,21 +79,6 @@ public class AuthController {
         return ResponseEntity.ok(buildUserPayload(userDetails));
     }
 
-    private ResponseCookie buildAuthCookie(String value, Duration maxAge) {
-        boolean secure = true; // require HTTPS in prod; modern browsers also accept on localhost
-        // Allow override via system property for plain-HTTP local dev if absolutely needed
-        if (Boolean.getBoolean("signalpulse.auth.insecureCookie")) {
-            secure = false;
-        }
-        return ResponseCookie.from(AUTH_COOKIE, value)
-                .httpOnly(true)
-                .secure(secure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(maxAge)
-                .build();
-    }
-
     private Map<String, Object> buildUserPayload(UserDetails userDetails) {
         Set<String> authorities = userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -104,7 +94,19 @@ public class AuthController {
                         "username", userDetails.getUsername(),
                         "roles", roles
                 ),
-                "authorities", authorities
+                "authorities", authorities,
+                "session", Map.of(
+                        "idleTimeoutMins", resolveIdleTimeoutMins(),
+                        "absoluteExpiryMs", jwtService.getExpirationMs()
+                )
         );
+    }
+
+    private long resolveIdleTimeoutMins() {
+        try {
+            return Long.parseLong(configService.getConfig("SESSION_TIMEOUT_MINS").orElse(String.valueOf(DEFAULT_IDLE_TIMEOUT_MINS)));
+        } catch (NumberFormatException e) {
+            return DEFAULT_IDLE_TIMEOUT_MINS;
+        }
     }
 }
