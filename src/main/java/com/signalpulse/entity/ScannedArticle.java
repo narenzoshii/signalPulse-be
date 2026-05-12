@@ -21,7 +21,7 @@ public class ScannedArticle {
     @Column(length = 500)
     private String title;
 
-    @Column(unique = true, nullable = false, length = 1024)
+    @Column(unique = true, nullable = false, columnDefinition = "TEXT")
     private String link;
 
     @Column(columnDefinition = "TEXT")

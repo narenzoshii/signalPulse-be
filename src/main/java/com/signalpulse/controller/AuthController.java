@@ -15,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
@@ -52,10 +53,24 @@ public class AuthController {
         UserDetails userDetails = userDetailsService.loadUserByUsername(body.getUsername());
         String jwt = jwtService.generateToken(userDetails);
 
+        // Force CSRF token materialisation so XSRF-TOKEN cookie ships with the
+        // login response. CsrfCookieFilter normally handles this, but login is
+        // in ignoringRequestMatchers and behavior there varies across versions;
+        // without this, the first POST after login lands as 403 because the FE
+        // has no token to echo back in X-XSRF-TOKEN.
+        materializeCsrfToken(request);
+
         ResponseCookie cookie = cookieFactory.build(jwt, Duration.ofMillis(jwtService.getExpirationMs()), request);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(buildUserPayload(userDetails));
+    }
+
+    private void materializeCsrfToken(HttpServletRequest request) {
+        Object csrf = request.getAttribute(CsrfToken.class.getName());
+        if (csrf instanceof CsrfToken token) {
+            try { token.getToken(); } catch (Exception ignored) { /* best-effort */ }
+        }
     }
 
     @PostMapping("/logout")

@@ -3,6 +3,8 @@ package com.signalpulse.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Data
 @Table(
@@ -32,4 +34,13 @@ public class RssFeed {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     private Category category;
+
+    // ---- Health tracking ----
+    private LocalDateTime lastScanAt;
+    @Column(length = 16)
+    private String lastScanStatus;   // "SUCCESS" | "FAILURE"
+    @Column(length = 500)
+    private String lastScanError;
+    private int consecutiveFailures = 0;
+    private int lastArticleCount = 0;
 }

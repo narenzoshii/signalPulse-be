@@ -48,3 +48,12 @@ app:
   scan:
     pool-size: ${SCAN_POOL_SIZE:8}             # bounded executor for outbound feed/page I/O
     task-timeout-seconds: ${SCAN_TASK_TIMEOUT:120}
+
+spring.mail:
+  properties:
+    mail.smtp.auth: true
+    mail.smtp.starttls.enable: true
+    mail.smtp.starttls.required: true
+    mail.smtp.connectiontimeout: 5000
+    mail.smtp.timeout: 10000
+    mail.smtp.writetimeout: 10000

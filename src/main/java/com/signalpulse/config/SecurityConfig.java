@@ -1,6 +1,7 @@
 package com.signalpulse.config;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -86,5 +87,31 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /*
+     * Spring Boot would otherwise auto-register these OncePerRequestFilter
+     * beans into the plain servlet filter chain — they'd run BEFORE
+     * SpringSecurityFilterChain, before CsrfFilter has set the
+     * request attribute, and `OncePerRequestFilter` would then mark them
+     * "already filtered" and skip them when Security tries to run them
+     * inside its own chain. End result: the CSRF cookie never gets written.
+     *
+     * Disable the auto-registration so each filter only runs once — in the
+     * right place — under SecurityFilterChain.
+     */
+
+    @Bean
+    public FilterRegistrationBean<CsrfCookieFilter> disableCsrfCookieFilterAutoReg(CsrfCookieFilter filter) {
+        FilterRegistrationBean<CsrfCookieFilter> reg = new FilterRegistrationBean<>(filter);
+        reg.setEnabled(false);
+        return reg;
+    }
+
+    @Bean
+    public FilterRegistrationBean<TokenAuthenticationFilter> disableTokenFilterAutoReg(TokenAuthenticationFilter filter) {
+        FilterRegistrationBean<TokenAuthenticationFilter> reg = new FilterRegistrationBean<>(filter);
+        reg.setEnabled(false);
+        return reg;
     }
 }

@@ -3,6 +3,8 @@ package com.signalpulse.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Data
 @Table(
@@ -29,6 +31,13 @@ public class HtmlPage {
     @Column(length = 32)
     private String type = "html_list"; // html_list | html_detail
 
+    /**
+     * "auto" → HtmlAutoDiscovery infers article links from the DOM at scan time;
+     * the user only needs a URL. "manual" → use the CSS selectors below.
+     */
+    @Column(length = 16, nullable = false)
+    private String discoveryMode = "auto";
+
     @Column(length = 500)
     private String listSelector;
     @Column(length = 500)
@@ -44,4 +53,13 @@ public class HtmlPage {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     private Category category;
+
+    // ---- Health tracking ----
+    private LocalDateTime lastScanAt;
+    @Column(length = 16)
+    private String lastScanStatus;   // "SUCCESS" | "FAILURE"
+    @Column(length = 500)
+    private String lastScanError;
+    private int consecutiveFailures = 0;
+    private int lastArticleCount = 0;
 }

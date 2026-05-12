@@ -22,16 +22,16 @@ public class HtmlPageRequest {
     @Pattern(regexp = "html_list|html_detail", message = "type must be html_list or html_detail")
     private String type = "html_list";
 
-    @NotBlank
+    @Pattern(regexp = "auto|manual", message = "discoveryMode must be 'auto' or 'manual'")
+    private String discoveryMode = "auto";
+
+    // Selectors are only required when discoveryMode = "manual" (validated in controller).
     @Size(max = 500)
     private String listSelector;
-
     @Size(max = 500)
     private String titleSelector;
-
     @Size(max = 500)
     private String linkSelector;
-
     @Size(max = 500)
     private String dateSelector;
 
